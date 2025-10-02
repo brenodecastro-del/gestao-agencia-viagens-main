@@ -1,11 +1,21 @@
 import { Cliente, Reserva, Configuracao, Alerta, CalculoAlertaCheckin } from './types'
 
 // Funções de formatação
-export const formatCPF = (cpf: string): string => {
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+export const formatCPF = (cpf: string | undefined | null): string => {
+  if (!cpf || typeof cpf !== 'string') return ''
+  // Remove todos os caracteres não numéricos primeiro
+  const cleanCPF = cpf.replace(/\D/g, '')
+  // Só formata se tiver 11 dígitos
+  if (cleanCPF.length !== 11) return cpf
+  return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
 }
 
-export const formatPhone = (phone: string): string => {
+export const formatPhone = (phone: string | undefined | null): string => {
+  if (!phone || typeof phone !== 'string') return ''
+  // Remove todos os caracteres não numéricos primeiro
+  const cleanPhone = phone.replace(/\D/g, '')
+  // Só formata se tiver o padrão esperado
+  if (cleanPhone.length < 10) return phone
   return phone.replace(/(\+55)\s*(\d{2})\s*(\d{5})(\d{4})/, '$1 ($2) $3-$4')
 }
 
@@ -107,7 +117,7 @@ export const calcularAlertaCheckin = (dataCheckin: string): CalculoAlertaCheckin
   if (diasRestantes < 0) return { 
     data_checkin: dataCheckin, 
     dias_restantes: diasRestantes, 
-    status: 'Vencido', 
+    status: 'Vencida', 
     cor: 'bg-gray-500' 
   }
   
