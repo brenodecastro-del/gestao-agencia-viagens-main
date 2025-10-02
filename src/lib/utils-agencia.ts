@@ -95,13 +95,13 @@ export const calcularAlertaCheckin = (dataCheckin: string): CalculoAlertaCheckin
   if (diasRestantes >= 2 && diasRestantes <= 7) return { 
     data_checkin: dataCheckin, 
     dias_restantes: diasRestantes, 
-    status: 'Vermelho', 
+    status: `${diasRestantes} dias`, 
     cor: 'bg-red-500' 
   }
   if (diasRestantes >= 8 && diasRestantes <= 30) return { 
     data_checkin: dataCheckin, 
     dias_restantes: diasRestantes, 
-    status: 'Verde', 
+    status: `${diasRestantes} dias`, 
     cor: 'bg-green-500' 
   }
   if (diasRestantes < 0) return { 
@@ -114,7 +114,7 @@ export const calcularAlertaCheckin = (dataCheckin: string): CalculoAlertaCheckin
   return { 
     data_checkin: dataCheckin, 
     dias_restantes: diasRestantes, 
-    status: '', 
+    status: `${diasRestantes} dias`, 
     cor: 'bg-gray-300' 
   }
 }
@@ -281,7 +281,7 @@ export const criarAlertasAutomaticos = (reservas: Reserva[], clientes: Cliente[]
     const alerta = calcularAlertaCheckin(reserva.data_checkin)
     const cliente = clientes.find(c => c.id === reserva.cliente_pagante_id)
     
-    if (alerta.status === 'Hoje' || alerta.status === 'Amanhã' || alerta.status === 'Vermelho') {
+    if (alerta.status === 'Hoje' || alerta.status === 'Amanhã' || alerta.dias_restantes <= 7) {
       alertas.push({
         id: `checkin_${reserva.id}`,
         tipo: alerta.status === 'Hoje' ? 'checkin_hoje' : 
