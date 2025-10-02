@@ -87,7 +87,7 @@ export default function GestaoAgenciaViagens() {
   const [reservas, setReservas] = useState<Reserva[]>(reservasSeed)
   const [alertas, setAlertas] = useState<Alerta[]>([])
   const [showDialog, setShowDialog] = useState(false)
-  const [dialogType, setDialogType] = useState<'cliente' | 'reserva' | 'reserva-manual' | 'config' | 'delete-reserva'>('cliente')
+  const [dialogType, setDialogType] = useState<'cliente' | 'reserva' | 'reserva-manual' | 'config' | 'delete-reserva' | 'view-reserva'>('cliente')
   const [editingItem, setEditingItem] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filtroOrigem, setFiltroOrigem] = useState('')
@@ -95,6 +95,7 @@ export default function GestaoAgenciaViagens() {
   const [periodoKPI, setPeriodoKPI] = useState('30') // dias
   const [isClient, setIsClient] = useState(false)
   const [reservaToDelete, setReservaToDelete] = useState<Reserva | null>(null)
+  const [reservaToView, setReservaToView] = useState<Reserva | null>(null)
 
   // Marcar como cliente após hidratação
   useEffect(() => {
@@ -286,6 +287,18 @@ export default function GestaoAgenciaViagens() {
   const cancelDeleteReserva = () => {
     setShowDialog(false)
     setReservaToDelete(null)
+  }
+
+  // Função para visualizar detalhes da reserva
+  const handleViewReserva = (reserva: Reserva) => {
+    setReservaToView(reserva)
+    setDialogType('view-reserva')
+    setShowDialog(true)
+  }
+
+  const closeViewReserva = () => {
+    setShowDialog(false)
+    setReservaToView(null)
   }
 
   // Calcular badges para o menu
@@ -861,16 +874,16 @@ export default function GestaoAgenciaViagens() {
                         </p>
                       </div>
                     </TableCell>
-                    <TableCell>{formatCPF(cliente.cpf)}</TableCell>
+                    <TableCell>{formatCPF(cliente?.cpf)}</TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <Phone className="w-3 h-3" />
-                          <span className="text-sm">{formatPhone(cliente.telefone)}</span>
+                          <span className="text-sm">{formatPhone(cliente?.telefone)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Mail className="w-3 h-3" />
-                          <span className="text-sm">{cliente.email}</span>
+                          <span className="text-sm">{cliente?.email}</span>
                         </div>
                       </div>
                     </TableCell>
@@ -993,7 +1006,7 @@ export default function GestaoAgenciaViagens() {
                   const alerta = calcularAlertaCheckin(reserva.data_checkin)
                   
                   return (
-                    <TableRow key={reserva.id}>
+                    <TableRow key={reserva.id} className="cursor-pointer hover:bg-gray-50" onClick={() => handleViewReserva(reserva)}>
                       <TableCell>
                         <div>
                           <p className="font-medium">{cliente?.nome_pagante}</p>
@@ -1046,7 +1059,10 @@ export default function GestaoAgenciaViagens() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="outline" size="sm" onClick={() => handleViewReserva(reserva)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
                           <Button variant="outline" size="sm" onClick={() => handleEditReserva(reserva)}>
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -1548,6 +1564,277 @@ export default function GestaoAgenciaViagens() {
             </div>
           </div>
         )
+      case 'view-reserva':
+        return reservaToView && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Informações Básicas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Informações da Reserva
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Código da Reserva</Label>
+                    <p className="font-mono text-lg">{reservaToView.codigo_reserva}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Serviço</Label>
+                    <div className="flex items-center gap-2">
+                      {reservaToView.servico === 'Aéreo' || reservaToView.servico === 'Pacote' ? 
+                        <Plane className="w-4 h-4" /> : 
+                        <Hotel className="w-4 h-4" />
+                      }
+                      <span className="font-medium">{reservaToView.servico}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Destino</Label>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      <span className="font-medium">{reservaToView.destino}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Operadora</Label>
+                    <p className="font-medium">{reservaToView.operadora}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Status</Label>
+                    <Badge className={`${calcularAlertaCheckin(reservaToView.data_checkin).cor} text-white`}>
+                      {calcularAlertaCheckin(reservaToView.data_checkin).status || 'Confirmada'}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Cliente Pagante */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    Cliente Pagante
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {(() => {
+                    const cliente = clientes.find(c => c.id === reservaToView.cliente_pagante_id)
+                    return cliente ? (
+                      <>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-500">Nome</Label>
+                          <p className="font-medium">{cliente.nome_pagante}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-500">CPF</Label>
+                          <p className="font-mono">{formatCPF(cliente?.cpf)}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-500">Telefone</Label>
+                          <div className="flex items-center gap-2">
+                            <Phone className="w-4 h-4" />
+                            <span>{formatPhone(cliente?.telefone)}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-500">Email</Label>
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4" />
+                            <span>{cliente?.email}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-500">Fidelidade</Label>
+                          <Badge className={`${getFidelidadeColor(cliente.status_fidelidade)} text-white`}>
+                            {cliente.status_fidelidade}
+                          </Badge>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-gray-500">Cliente não encontrado</p>
+                    )
+                  })()}
+                </CardContent>
+              </Card>
+
+              {/* Datas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Datas Importantes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Data da Compra</Label>
+                    <p className="font-medium">{formatDate(reservaToView.data_compra)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Check-in</Label>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{formatDate(reservaToView.data_checkin)}</p>
+                      {(() => {
+                        const alerta = calcularAlertaCheckin(reservaToView.data_checkin)
+                        return alerta.status && (
+                          <Badge className={`${alerta.cor} text-white text-xs`}>
+                            {alerta.status}
+                          </Badge>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Check-out</Label>
+                    <p className="font-medium">{formatDate(reservaToView.data_checkout)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Duração</Label>
+                    <p className="font-medium">
+                      {Math.ceil((new Date(reservaToView.data_checkout).getTime() - new Date(reservaToView.data_checkin).getTime()) / (1000 * 60 * 60 * 24))} dias
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Valores Financeiros */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5" />
+                    Informações Financeiras
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Valor de Venda</Label>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(reservaToView.valor_venda)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Comissão</Label>
+                    <div>
+                      <p className="text-xl font-bold text-blue-600">
+                        {formatCurrency(reservaToView.comissao_lancada_manual || reservaToView.comissao_calculada)}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {reservaToView.comissao_lancada_manual ? 'Lançamento Manual' : `${reservaToView.percentual_comissao}% Calculado`}
+                      </p>
+                    </div>
+                  </div>
+                  {reservaToView.valor_custo && (
+                    <div>
+                      <Label className="text-sm font-medium text-gray-500">Valor de Custo</Label>
+                      <p className="font-medium text-red-600">{formatCurrency(reservaToView.valor_custo)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">Margem de Lucro</Label>
+                    <p className="font-medium text-green-600">
+                      {formatCurrency(reservaToView.valor_venda - (reservaToView.valor_custo || 0) - (reservaToView.comissao_lancada_manual || reservaToView.comissao_calculada))}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Acompanhantes */}
+            {reservaToView.acompanhantes && reservaToView.acompanhantes.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Acompanhantes ({reservaToView.acompanhantes.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {reservaToView.acompanhantes.map((acompanhante, index) => (
+                      <div key={index} className="p-3 border rounded-lg">
+                        <p className="font-medium">{acompanhante.nome}</p>
+                        <p className="text-sm text-gray-500">{acompanhante.cpf ? formatCPF(acompanhante.cpf) : 'CPF não informado'}</p>
+                        <p className="text-sm text-gray-500">{formatDate(acompanhante.data_nascimento)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Observações */}
+            {reservaToView.observacoes && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Observações
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700 whitespace-pre-wrap">{reservaToView.observacoes}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Anexos */}
+            {reservaToView.anexos && reservaToView.anexos.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Documentos Anexados ({reservaToView.anexos.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {reservaToView.anexos.map((anexo, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                          <span className="font-medium">{anexo}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Botões de Ação */}
+            <div className="flex gap-3 justify-end pt-4 border-t">
+              <Button variant="outline" onClick={closeViewReserva}>
+                Fechar
+              </Button>
+              <Button variant="outline" onClick={() => {
+                closeViewReserva()
+                handleEditReserva(reservaToView)
+              }}>
+                <Edit className="w-4 h-4 mr-2" />
+                Editar Reserva
+              </Button>
+              <Button 
+                style={{ backgroundColor: config.cores_marca.primaria }}
+                onClick={() => {
+                  // Aqui você pode adicionar lógica para imprimir ou exportar
+                  window.print()
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Imprimir Detalhes
+              </Button>
+            </div>
+          </div>
+        )
       default:
         return null
     }
@@ -1581,7 +1868,7 @@ export default function GestaoAgenciaViagens() {
 
       {/* Dialog para formulários */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {dialogType === 'cliente' && (editingItem ? 'Editar Cliente' : 'Novo Cliente')}
@@ -1589,6 +1876,7 @@ export default function GestaoAgenciaViagens() {
               {dialogType === 'reserva-manual' && (editingItem ? 'Editar Reserva Manual' : 'Nova Reserva')}
               {dialogType === 'config' && 'Configurações da Agência'}
               {dialogType === 'delete-reserva' && 'Excluir Reserva'}
+              {dialogType === 'view-reserva' && 'Detalhes da Reserva'}
             </DialogTitle>
           </DialogHeader>
           
