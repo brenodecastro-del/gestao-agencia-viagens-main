@@ -71,9 +71,13 @@ export default function ReservaForm({
     reserva?.status || 'Confirmada'
   )
   const [referenciaExterna, setReferenciaExterna] = useState(reserva?.referencia_externa || '')
+  const [anexos, setAnexos] = useState<string[]>(reserva?.anexos || [])
 
   // Estados para novo acompanhante
   const [novoAcompanhante, setNovoAcompanhante] = useState('')
+  
+  // Estados para anexos
+  const [novoAnexo, setNovoAnexo] = useState('')
 
   // Calcular comissão automaticamente
   const valorVendaNum = parseFloat(valorVenda) || 0
@@ -114,6 +118,31 @@ export default function ReservaForm({
     setAcompanhantes(acompanhantes.filter((_, i) => i !== index))
   }
 
+  // Funções para anexos
+  const adicionarAnexo = () => {
+    if (novoAnexo.trim() && !anexos.includes(novoAnexo.trim())) {
+      setAnexos([...anexos, novoAnexo.trim()])
+      setNovoAnexo('')
+    }
+  }
+
+  const removerAnexo = (index: number) => {
+    setAnexos(anexos.filter((_, i) => i !== index))
+  }
+
+
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (files) {
+      const fileNames = Array.from(files).map(file => file.name)
+      const novosAnexos = fileNames.filter(name => !anexos.includes(name))
+      if (novosAnexos.length > 0) {
+        setAnexos([...anexos, ...novosAnexos])
+      }
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -139,7 +168,8 @@ export default function ReservaForm({
       comissao_lancada_manual: isNovaReserva && comissaoManual ? parseFloat(comissaoManual) : undefined,
       observacoes,
       status,
-      referencia_externa: referenciaExterna || undefined
+      referencia_externa: referenciaExterna || undefined,
+      anexos: anexos.length > 0 ? anexos : undefined
     }
 
     onSave(reservaData)
@@ -555,6 +585,82 @@ export default function ReservaForm({
                   rows={4}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Documentos Anexados
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Upload de arquivos */}
+              <div>
+                <Label htmlFor="file-upload">Anexar Documentos</Label>
+                <Input
+                  id="file-upload"
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={handleFileUpload}
+                  className="cursor-pointer"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Formatos aceitos: PDF, DOC, DOCX, JPG, PNG
+                </p>
+              </div>
+
+              {/* Adicionar anexo manualmente */}
+              <div>
+                <Label>Ou adicionar nome do documento manualmente</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Nome do documento (ex: Voucher Hotel.pdf)"
+                    value={novoAnexo}
+                    onChange={(e) => setNovoAnexo(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), adicionarAnexo())}
+                  />
+                  <Button type="button" onClick={adicionarAnexo} variant="outline">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Lista de anexos */}
+              {anexos.length > 0 && (
+                <div>
+                  <Label>Documentos Anexados ({anexos.length})</Label>
+                  <div className="space-y-2 mt-2">
+                    {anexos.map((anexo, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                          <span className="font-medium">{anexo}</span>
+                        </div>
+                        <Button 
+                          type="button" 
+                          onClick={() => removerAnexo(index)}
+                          variant="ghost" 
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {anexos.length === 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>Nenhum documento anexado</p>
+                  <p className="text-sm">Use o campo acima para anexar documentos</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
