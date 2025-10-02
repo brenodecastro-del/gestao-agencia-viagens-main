@@ -87,13 +87,14 @@ export default function GestaoAgenciaViagens() {
   const [reservas, setReservas] = useState<Reserva[]>(reservasSeed)
   const [alertas, setAlertas] = useState<Alerta[]>([])
   const [showDialog, setShowDialog] = useState(false)
-  const [dialogType, setDialogType] = useState<'cliente' | 'reserva' | 'reserva-manual' | 'config'>('cliente')
+  const [dialogType, setDialogType] = useState<'cliente' | 'reserva' | 'reserva-manual' | 'config' | 'delete-reserva'>('cliente')
   const [editingItem, setEditingItem] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filtroOrigem, setFiltroOrigem] = useState('')
   const [filtroFidelidade, setFiltroFidelidade] = useState('')
   const [periodoKPI, setPeriodoKPI] = useState('30') // dias
   const [isClient, setIsClient] = useState(false)
+  const [reservaToDelete, setReservaToDelete] = useState<Reserva | null>(null)
 
   // Marcar como cliente após hidratação
   useEffect(() => {
@@ -230,7 +231,7 @@ export default function GestaoAgenciaViagens() {
     
     // Criar alerta se check-in <= 7 dias
     const alerta = calcularAlertaCheckin(reservaData.data_checkin)
-    if (alerta.status === 'Hoje' || alerta.status === 'Amanhã' || alerta.status === 'Vermelho') {
+    if (alerta.status === 'Hoje' || alerta.status === 'Amanhã' || alerta.dias_restantes <= 7) {
       const cliente = clientes.find(c => c.id === reservaData.cliente_pagante_id)
       const novoAlerta: Alerta = {
         id: `checkin_${Date.now()}`,
@@ -254,6 +255,37 @@ export default function GestaoAgenciaViagens() {
   const handleSaveConfig = (configData: Configuracao) => {
     setConfig(configData)
     setShowDialog(false)
+  }
+
+  // Função para excluir reserva
+  const handleDeleteReserva = (reserva: Reserva) => {
+    setReservaToDelete(reserva)
+    setDialogType('delete-reserva')
+    setShowDialog(true)
+  }
+
+  const confirmDeleteReserva = () => {
+    if (reservaToDelete) {
+      // Remover a reserva do estado
+      setReservas(prev => prev.filter(r => r.id !== reservaToDelete.id))
+      
+      // Atualizar status de fidelidade do cliente após exclusão
+      atualizarStatusFidelidade(reservaToDelete.cliente_pagante_id)
+      
+      // Remover alertas relacionados à reserva excluída
+      setAlertas(prev => prev.filter(a => 
+        !a.dados_relacionados || a.dados_relacionados.reserva_id !== reservaToDelete.id
+      ))
+      
+      // Fechar modal e limpar estado
+      setShowDialog(false)
+      setReservaToDelete(null)
+    }
+  }
+
+  const cancelDeleteReserva = () => {
+    setShowDialog(false)
+    setReservaToDelete(null)
   }
 
   // Calcular badges para o menu
@@ -505,7 +537,11 @@ export default function GestaoAgenciaViagens() {
                 {checkinsHoje.slice(0, 3).map(reserva => {
                   const cliente = clientes.find(c => c.id === reserva.cliente_pagante_id)
                   return (
-                    <div key={reserva.id} className="flex justify-between items-center p-2 bg-red-50 rounded">
+                    <div key={reserva.id} className="flex justify-between items-center p-2 bg-red-50 rounded cursor-pointer hover:bg-red-100 transition-colors"
+                         onClick={() => {
+                           setActiveModule('reservas')
+                           setSearchTerm(reserva.codigo_reserva)
+                         }}>
                       <span className="text-sm font-medium">{cliente?.nome_pagante}</span>
                       <Badge className="bg-red-600 text-white">Hoje</Badge>
                     </div>
@@ -530,7 +566,11 @@ export default function GestaoAgenciaViagens() {
                 {checkinsAmanha.slice(0, 3).map(reserva => {
                   const cliente = clientes.find(c => c.id === reserva.cliente_pagante_id)
                   return (
-                    <div key={reserva.id} className="flex justify-between items-center p-2 bg-orange-50 rounded">
+                    <div key={reserva.id} className="flex justify-between items-center p-2 bg-orange-50 rounded cursor-pointer hover:bg-orange-100 transition-colors"
+                         onClick={() => {
+                           setActiveModule('reservas')
+                           setSearchTerm(reserva.codigo_reserva)
+                         }}>
                       <span className="text-sm font-medium">{cliente?.nome_pagante}</span>
                       <Badge className="bg-orange-500 text-white">Amanhã</Badge>
                     </div>
@@ -556,7 +596,11 @@ export default function GestaoAgenciaViagens() {
                   const cliente = clientes.find(c => c.id === reserva.cliente_pagante_id)
                   const alerta = calcularAlertaCheckin(reserva.data_checkin)
                   return (
-                    <div key={reserva.id} className="flex justify-between items-center p-2 bg-green-50 rounded">
+                    <div key={reserva.id} className="flex justify-between items-center p-2 bg-green-50 rounded cursor-pointer hover:bg-green-100 transition-colors"
+                         onClick={() => {
+                           setActiveModule('reservas')
+                           setSearchTerm(reserva.codigo_reserva)
+                         }}>
                       <span className="text-sm font-medium">{cliente?.nome_pagante}</span>
                       <Badge className={`${alerta.cor} text-white`}>{alerta.status}</Badge>
                     </div>
@@ -997,7 +1041,7 @@ export default function GestaoAgenciaViagens() {
                       </TableCell>
                       <TableCell>
                         <Badge variant={alerta.status === 'Hoje' || alerta.status === 'Amanhã' ? "destructive" : 
-                                      alerta.status === 'Vermelho' ? "secondary" : "default"}>
+                                      alerta.dias_restantes <= 7 ? "secondary" : "default"}>
                           {alerta.status || 'Confirmada'}
                         </Badge>
                       </TableCell>
@@ -1005,6 +1049,10 @@ export default function GestaoAgenciaViagens() {
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" onClick={() => handleEditReserva(reserva)}>
                             <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDeleteReserva(reserva)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -1469,6 +1517,37 @@ export default function GestaoAgenciaViagens() {
             onCancel={() => setShowDialog(false)}
           />
         )
+      case 'delete-reserva':
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <AlertTriangle className="w-16 h-16 mx-auto text-red-500 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Confirmar Exclusão</h3>
+              <p className="text-gray-600 mb-4">
+                Tem certeza que deseja excluir esta reserva? Esta ação não pode ser desfeita.
+              </p>
+              {reservaToDelete && (
+                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <p className="font-medium">Reserva: {reservaToDelete.codigo_reserva}</p>
+                  <p className="text-sm text-gray-600">
+                    Cliente: {clientes.find(c => c.id === reservaToDelete.cliente_pagante_id)?.nome_pagante}
+                  </p>
+                  <p className="text-sm text-gray-600">Destino: {reservaToDelete.destino}</p>
+                  <p className="text-sm text-gray-600">Valor: {formatCurrency(reservaToDelete.valor_venda)}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={cancelDeleteReserva}>
+                Cancelar
+              </Button>
+              <Button variant="destructive" onClick={confirmDeleteReserva}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir Reserva
+              </Button>
+            </div>
+          </div>
+        )
       default:
         return null
     }
@@ -1509,6 +1588,7 @@ export default function GestaoAgenciaViagens() {
               {dialogType === 'reserva' && (editingItem ? 'Editar Reserva' : 'Gestão de Reservas')}
               {dialogType === 'reserva-manual' && (editingItem ? 'Editar Reserva Manual' : 'Nova Reserva')}
               {dialogType === 'config' && 'Configurações da Agência'}
+              {dialogType === 'delete-reserva' && 'Excluir Reserva'}
             </DialogTitle>
           </DialogHeader>
           
