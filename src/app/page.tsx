@@ -721,8 +721,8 @@ export default function GestaoAgenciaViagens() {
                          cliente.cpf.includes(searchTerm) ||
                          cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
       
-      const matchOrigem = !filtroOrigem || cliente.origem_cliente === filtroOrigem
-      const matchFidelidade = !filtroFidelidade || cliente.status_fidelidade === filtroFidelidade
+      const matchOrigem = !filtroOrigem || filtroOrigem === 'todas' || cliente.origem_cliente === filtroOrigem
+      const matchFidelidade = !filtroFidelidade || filtroFidelidade === 'todas' || cliente.status_fidelidade === filtroFidelidade
       
       return matchSearch && matchOrigem && matchFidelidade
     }).sort((a, b) => b.historico_compras.valor_total - a.historico_compras.valor_total) // Ordenar por LTV
@@ -770,7 +770,7 @@ export default function GestaoAgenciaViagens() {
               <SelectValue placeholder="Filtrar por origem" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas as origens</SelectItem>
+              <SelectItem value="todas">Todas as origens</SelectItem>
               {config.origens_clientes.map(origem => (
                 <SelectItem key={origem} value={origem}>{origem}</SelectItem>
               ))}
@@ -781,7 +781,7 @@ export default function GestaoAgenciaViagens() {
               <SelectValue placeholder="Filtrar por fidelidade" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas as fidelidades</SelectItem>
+              <SelectItem value="todas">Todas as fidelidades</SelectItem>
               <SelectItem value="Bronze">Bronze</SelectItem>
               <SelectItem value="Prata">Prata</SelectItem>
               <SelectItem value="Ouro">Ouro</SelectItem>
